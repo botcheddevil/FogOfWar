@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Not a React App</title>
+    <script>
+      console.log('Hello from index.html');
+      // Connect to websocket server and send a message
+
+      const ws = new WebSocket('ws://localhost:3000');
+
+      ws.onopen = () => {
+        console.log('Connected to websocket server');
+        ws.send('Hello from client');
+      };
+      ws.onmessage = (message) => {
+        console.log('Received message:', message.data);
+      };
+      ws.onclose = () => {
+        console.log('Disconnected from websocket server');
+      };
+    </script>
+  </head>
+  <body>
+    <div id="root">In ROOT</div>
+  </body>
+</html>
