@@ -8,8 +8,8 @@ export interface User {
 }
 
 export interface Move {
-  from: number;
-  to: number;
+  start: number;
+  end: number;
   timestamp: Date;
 }
 
@@ -30,11 +30,20 @@ export enum GameResult {
 export interface Game {
   _id?: ObjectId;
   udid: string;
-  playerWhite: string; // email
-  playerBlack: string; // email
+  playerWhite: string;
+  playerBlack: string;
   createdDate: Date;
   moves: Move[];
   gameState: Binary;
   status: GameStatus;
   result: GameResult;
+}
+
+export interface Session {
+  _id?: ObjectId;
+  userId: string;
+  sessionId: string;
+  email: string;
+  createdAt: Date;
+  lastActive: Date;
 }

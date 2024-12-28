@@ -2,6 +2,7 @@ import { Server } from 'http';
 import WebSocket from 'ws';
 import { WebSocketHandler } from '../WebSocketHandler';
 import { ILogger } from '../ILogger';
+import { IDb } from '../IDb';
 
 describe('WebSocketHandler', () => {
   let mockServer: Server;
@@ -12,10 +13,29 @@ describe('WebSocketHandler', () => {
     mockLogger = {
       info: jest.fn(),
       error: jest.fn(),
+      warn: jest.fn(),
+      silly: jest.fn(),
+      debug: jest.fn(),
+    };
+
+    const mockDb: jest.Mocked<IDb> = {
+      connect: jest.fn(),
+      close: jest.fn(),
+      createUser: jest.fn(),
+      validateCredentials: jest.fn(),
+      validateUserSession: jest.fn(),
+      validateSession: jest.fn(),
+      deleteSession: jest.fn(),
+      createGame: jest.fn(),
+      getGameState: jest.fn(),
+      updateGameState: jest.fn(),
+      getGameList: jest.fn(),
+      getGame: jest.fn(),
+      joinGame: jest.fn(),
     };
 
     mockServer = new Server();
-    new WebSocketHandler(mockServer, mockLogger);
+    new WebSocketHandler(mockServer, mockDb, mockLogger);
     await mockServer.listen(8080);
   });
 
@@ -43,13 +63,7 @@ describe('WebSocketHandler', () => {
     wsClient.on('open', () => {
       const binaryData = new Uint8Array([0x01, 0x02, 0x03, 0x04]);
       wsClient.send(binaryData);
-    });
-
-    wsClient.onmessage = (event) => {
-      const encoder = new TextEncoder();
-      const data = new Uint8Array(encoder.encode(event.data.toString()));
-      console.log(`Received binary data: ${data}`);
       done();
-    };
+    });
   });
 });

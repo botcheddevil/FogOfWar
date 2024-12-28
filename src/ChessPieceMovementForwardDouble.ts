@@ -1,9 +1,7 @@
-import { ChessPieceColor } from './ChessPieceColor';
 import { IChessPieceMovement } from './IChessPieceMovement';
 
 export class ChessPieceMovementForwardDouble implements IChessPieceMovement {
-  validateMove(from: number[], to: number[], color: ChessPieceColor): boolean {
-    const direction = color === ChessPieceColor.White ? -1 : 1;
+  validateMove(from: number[], to: number[], direction: number): boolean {
     if (
       (from[0] === 1 && direction === 1) ||
       (from[0] === 6 && direction === -1)

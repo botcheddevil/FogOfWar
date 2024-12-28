@@ -5,13 +5,13 @@ describe('ChessPieceMovementForwardDouble', () => {
   beforeAll(() => {
     movement = new ChessPieceMovementForwardDouble();
   });
-  it('should pass for black piece', () => {
+  it('should pass for white piece', () => {
     expect(
-      movement.validateMove([1, 1], [3, 1], ChessPieceColor.Black),
+      movement.validateMove([1, 1], [3, 1], ChessPieceColor.White),
     ).toBeTruthy();
 
     expect(
-      movement.validateMove([1, 3], [3, 3], ChessPieceColor.Black),
+      movement.validateMove([1, 3], [3, 3], ChessPieceColor.White),
     ).toBeTruthy();
   });
 
@@ -25,13 +25,13 @@ describe('ChessPieceMovementForwardDouble', () => {
     ).toBeFalsy();
   });
 
-  it('should pass for white piece', () => {
+  it('should pass for black piece', () => {
     expect(
-      movement.validateMove([6, 1], [4, 1], ChessPieceColor.White),
+      movement.validateMove([6, 1], [4, 1], ChessPieceColor.Black),
     ).toBeTruthy();
 
     expect(
-      movement.validateMove([6, 3], [4, 3], ChessPieceColor.White),
+      movement.validateMove([6, 3], [4, 3], ChessPieceColor.Black),
     ).toBeTruthy();
   });
 

@@ -3,26 +3,61 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Not a React App</title>
-    <script>
-      console.log('Hello from index.html');
-      // Connect to websocket server and send a message
-
-      const ws = new WebSocket('ws://localhost:3000');
-
-      ws.onopen = () => {
-        console.log('Connected to websocket server');
-        ws.send('Hello from client');
-      };
-      ws.onmessage = (message) => {
-        console.log('Received message:', message.data);
-      };
-      ws.onclose = () => {
-        console.log('Disconnected from websocket server');
-      };
-    </script>
+    <title>Chess Game</title>
+    <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div id="root">In ROOT</div>
+    <header>
+      <div class="header-left">
+        <h1>Chess Game</h1>
+      </div>
+      <div class="header-right">
+        <div class="auth-container">
+          <input type="text" id="username" placeholder="Username" />
+          <input type="password" id="password" placeholder="Password" />
+          <button id="loginBtn">Login</button>
+          <button id="registerBtn">Register</button>
+        </div>
+        <div class="user-info" style="display: none">
+          <span id="userDisplay"></span>
+          <button id="logoutBtn">Logout</button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <div id="game-controls">
+        <button id="newGameBtn">New Game</button>
+        <div class="join-game-container">
+          <input type="text" id="gameIdInput" placeholder="Enter Game ID" />
+          <button id="joinGameBtn">Join Game</button>
+        </div>
+      </div>
+      <div id="games-list">
+        <h2>Your Games</h2>
+        <table id="games-table">
+          <thead>
+            <tr>
+              <th>Game ID</th>
+              <th>Opponent</th>
+              <th>Created Date</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Games will be inserted here -->
+          </tbody>
+        </table>
+      </div>
+
+      <div id="game-container" style="display: none">
+        <div id="game-info"></div>
+        <div id="chessboard"></div>
+        <button id="backToList">Back to Games List</button>
+      </div>
+    </main>
+
+    <script type="module" src="chess.js"></script>
   </body>
 </html>

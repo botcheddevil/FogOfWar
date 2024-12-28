@@ -4,7 +4,7 @@ import { ILogger } from './ILogger';
 export class LoggerFactory {
   static async getLogger(): Promise<ILogger> {
     const logger = await winston.createLogger({
-      level: 'info',
+      level: 'silly',
       format: winston.format.combine(
         winston.format.timestamp(),
         winston.format.colorize(),

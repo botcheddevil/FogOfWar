@@ -28,4 +28,8 @@ export class ChessPiece {
   getValidMoves(): IChessPieceMovement[] {
     return this.validMovements;
   }
+
+  encodePiece(): number {
+    return (this.color << 3) | this.type; // Shift color left by 3 bits and combine with type
+  }
 }

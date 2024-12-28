@@ -1,5 +1,8 @@
-import { ChessPieceColor } from './ChessPieceColor';
-
 export interface IChessPieceMovement {
-  validateMove(from: number[], to: number[], color?: ChessPieceColor): boolean;
+  validateMove(
+    from: number[],
+    to: number[],
+    direction?: number,
+    toCaptureable?: boolean,
+  ): boolean;
 }

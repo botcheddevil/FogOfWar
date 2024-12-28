@@ -1,8 +1,8 @@
 export enum ChessPieceType {
-  King = 'K',
-  Queen = 'Q',
-  Rook = 'R',
-  Bishop = 'B',
-  Knight = 'N',
-  Pawn = 'P',
+  King = 0,
+  Queen = 1,
+  Rook = 2,
+  Bishop = 3,
+  Knight = 4,
+  Pawn = 5,
 }

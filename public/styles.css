@@ -1,0 +1,222 @@
+/* styles.css */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  min-height: 100vh;
+  background-color: #f0f0f0;
+}
+
+header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background-color: #2c3e50;
+  color: white;
+  padding: 0 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+}
+
+.header-left h1 {
+  font-size: 1.5em;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.auth-container {
+  display: flex;
+  gap: 10px;
+}
+
+input {
+  padding: 8px;
+  border: none;
+  border-radius: 4px;
+  outline: none;
+}
+
+button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  background-color: #3498db;
+  color: white;
+  transition: background-color 0.3s;
+}
+
+button:hover {
+  background-color: #2980b9;
+}
+
+main {
+  padding-top: 80px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: calc(100vh - 60px);
+}
+
+#chessboard {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  width: 560px;
+  height: 560px;
+  border: 2px solid #333;
+  background-color: #fff;
+}
+
+.square {
+  width: 70px;
+  height: 70px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+
+.square-light {
+  background-color: #f0d9b5;
+}
+
+.square-dark {
+  background-color: #b58863;
+}
+
+.piece {
+  font-size: 3.5em;
+  cursor: grab;
+  user-select: none;
+  position: absolute;
+  transition: transform 0.1s;
+}
+
+.piece:active {
+  cursor: grabbing;
+}
+
+.piece.dragging {
+  opacity: 0.8;
+  z-index: 1000;
+}
+
+.valid-move {
+  background-color: rgba(144, 238, 144, 0.5);
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#userDisplay {
+  color: white;
+  font-weight: bold;
+}
+
+#game-info {
+  width: 560px; /* Same width as chessboard */
+  text-align: center;
+  margin-bottom: 20px;
+  padding: 10px;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+  font-size: 1.1em;
+  font-family: Arial, sans-serif;
+  color: #333;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#game-info:empty {
+  display: none;
+}
+
+#game-controls {
+  width: 560px;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.join-game-container {
+  display: flex;
+  gap: 10px;
+}
+
+#gameIdInput {
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  width: 200px;
+}
+
+#games-list {
+  width: 80%;
+  max-width: 800px;
+  margin: 20px auto;
+}
+
+#games-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+#games-table th,
+#games-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+#games-table th {
+  background-color: #f5f5f5;
+  font-weight: bold;
+}
+
+#games-table tr:hover {
+  background-color: #f9f9f9;
+}
+
+#game-container {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+#backToList {
+  margin-top: 20px;
+  background-color: #6c757d;
+}
+
+.join-button {
+  padding: 6px 12px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.join-button:hover {
+  background-color: #218838;
+}
