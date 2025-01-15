@@ -5,8 +5,10 @@ import { HttpHandler } from './HttpHandler';
 import { WebSocketHandler } from './WebSocketHandler';
 import http from 'http';
 import { Db } from './Db';
+import * as inspector from 'inspector';
 
 dotenv.config();
+inspector.open(9229);
 
 async function main() {
   const logger = await LoggerFactory.getLogger();

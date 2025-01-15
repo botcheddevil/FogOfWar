@@ -1,5 +1,5 @@
 import { liveConnect, liveSendMove } from './websocket.js';
-import { pieceSequence } from './constants.js';
+import { pieceSequence, gameResults } from './constants.js';
 
 document.addEventListener('DOMContentLoaded', function () {
   // DOM Elements
@@ -187,6 +187,8 @@ document.addEventListener('DOMContentLoaded', function () {
     //Get start index and end index
 
     const end = square.getAttribute('data-index');
+    document.getElementById('turn').textContent = "Opponent's Turn";
+    localStorage.setItem('turnOfPlayer', false);
     console.log('Move:', start, '->', end);
     const move = new Uint8Array([start, end]);
     liveSendMove(move);
@@ -328,6 +330,7 @@ document.addEventListener('DOMContentLoaded', function () {
       );
       square.appendChild(pieceElement);
     }
+    showGameContainer(localStorage.getItem('gameId'));
   }
 
   async function handleJoinGame() {
@@ -390,7 +393,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function showGameContainer(gameId) {
     gameContainer.style.display = 'flex';
-    document.getElementById('game-info').textContent = gameId;
+    document.getElementById('gameId').textContent = gameId;
+    document.getElementById('opponent').textContent =
+      localStorage.getItem('playerOpponent') || '';
+    document.getElementById('color').textContent =
+      { w: 'White', b: 'Black' }[localStorage.getItem('playerColor')] || '';
+    document.getElementById('status').textContent =
+      gameResults[Number(localStorage.getItem('status'))];
+    document.getElementById('turn').textContent =
+      localStorage.getItem('turnOfPlayer') === 'true'
+        ? 'Your Turn'
+        : "Opponent's Turn";
   }
 
   function hideGameContainer() {
@@ -438,12 +451,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
       const tr = document.createElement('tr');
       tr.innerHTML = `
-            <td>${game.udid}</td>
+            <td>${game.uuid}</td>
             <td>${opponent}</td>
             <td>${new Date(game.createdDate).toLocaleString()}</td>
-            <td>${game.status}</td>
+            <td>${gameResults[game.result]}</td>
             <td>
-                <button class="join-button" data-game-id="${game.udid}">
+                <button class="join-button" data-game-id="${game.uuid}">
                     Join Game
                 </button>
             </td>

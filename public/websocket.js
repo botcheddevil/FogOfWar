@@ -30,43 +30,100 @@ function uuidToBytes(uuid) {
 }
 
 function extractPositionsFromUint8Array(buffer) {
-  const positions = [];
-  let currentByte = 0;
-  let bitsAvailable = 0;
-  let position = 0;
+  let positions = [];
   let types = ['king', 'queen', 'rook', 'bishop', 'knight', 'pawn'];
   let colors = ['white', 'black'];
   let zeroIndex = -1;
 
-  if (buffer.length === 25) {
-    const { color, type } = decodePiece(buffer[24]);
-    zeroIndex = pieceSequence.findIndex(
-      (piece) => piece.color === colors[color] && piece.type === types[type],
-    );
-  }
+  const { zeroPieceColor, zeroPieceType, turnOfPlayer, gameStatus } =
+    decodeLastByte(buffer[24]);
+  zeroIndex = pieceSequence.findIndex(
+    (piece) =>
+      piece.color === colors[zeroPieceColor] &&
+      piece.type === types[zeroPieceType],
+  );
+  console.log('Zero Piece Color:', colors[zeroPieceColor]);
+  console.log('Zero Piece Type:', types[zeroPieceType]);
+  console.log('Zero Index:', zeroIndex);
 
-  for (let i = 0; i < 24; i++) {
-    currentByte = (currentByte << 8) | buffer[i];
-    bitsAvailable += 8;
+  positions = unpackPositions(buffer, zeroIndex);
+  return { positions, turnOfPlayer, gameStatus };
+}
 
-    while (bitsAvailable >= 6 && positions.length < 32) {
-      position = (currentByte >> (bitsAvailable - 6)) & 0x3f;
-      if (positions.length !== zeroIndex && position === 0) {
-        positions.push(null);
-      } else {
-        positions.push(position);
+function unpackPositions(buffer, zeroIndex) {
+  const positions = [];
+  let currentByteIndex = 0;
+  let bitPosition = 0;
+
+  // We expect 32 positions (chess board positions)
+  for (let i = 0; i < 32; i++) {
+    let value = 0;
+
+    // Read 6 bits for each position
+    // First, get the current byte
+    let currentByte = buffer[currentByteIndex];
+
+    // If we need bits from the next byte
+    if (bitPosition + 6 > 8) {
+      // Get remaining bits from current byte
+      const bitsFromCurrent = 8 - bitPosition;
+      const currentByteMask = (1 << bitsFromCurrent) - 1;
+      value = (currentByte >> bitPosition) & currentByteMask;
+
+      // Get required bits from next byte
+      const bitsNeeded = 6 - bitsFromCurrent;
+      const nextByte = buffer[currentByteIndex + 1];
+      const nextByteMask = (1 << bitsNeeded) - 1;
+      value |= (nextByte & nextByteMask) << bitsFromCurrent;
+
+      // Update positions for next iteration
+      bitPosition = bitsNeeded;
+      currentByteIndex++;
+    } else {
+      // All bits come from current byte
+      value = (currentByte >> bitPosition) & 0x3f;
+      bitPosition += 6;
+
+      // Move to next byte if we've used all bits
+      if (bitPosition === 8) {
+        bitPosition = 0;
+        currentByteIndex++;
       }
-      bitsAvailable -= 6;
+    }
+
+    // Handle zero position
+    if (i !== zeroIndex && value === 0) {
+      positions.push(null);
+    } else {
+      positions.push(value);
     }
   }
 
   return positions;
 }
 
-function decodePiece(byte) {
-  const color = (byte >> 3) & 1; // Shift right 3 and mask with 1 to get color
-  const type = byte & 0b111; // Mask with 111 to get type (3 bits)
-  return { color, type };
+function decodeLastByte(encoded) {
+  console.log('Received Last Byte:', encoded.toString(2).padStart(8, '0'));
+
+  // Extract each component according to the bit structure:
+  // Bit 0: Zero Piece Color
+  // Bits 1-3: Zero Piece Type
+  // Bit 4: Turn of Player
+  // Bits 5-7: Game Status
+
+  return {
+    // Extract bit 0
+    zeroPieceColor: encoded & 0b1,
+
+    // Extract bits 1-3 (Zero Piece Type)
+    zeroPieceType: (encoded >> 1) & 0b111,
+
+    // Extract bit 4 (Turn of Player)
+    turnOfPlayer: ((encoded >> 4) & 0b1) === 1,
+
+    // Extract bits 5-7 (Game Status)
+    gameStatus: (encoded >> 5) & 0b111,
+  };
 }
 
 export function liveConnect(cbDrawBoard) {
@@ -86,15 +143,17 @@ export function liveConnect(cbDrawBoard) {
       const bytes = new Uint8Array(buffer);
 
       switch (bytes.length) {
-        case 1:
-          const message = new TextDecoder().decode(bytes);
-          handleMessage(message);
         case 25:
-        case 24:
-          const positions = extractPositionsFromUint8Array(bytes);
+          const { positions, turnOfPlayer, gameStatus } =
+            extractPositionsFromUint8Array(bytes);
+          localStorage.setItem('turnOfPlayer', turnOfPlayer);
+          localStorage.setItem('gameStatus', gameStatus);
           console.log('Received positions:', positions);
           cbDrawBoard(positions);
           break;
+        default:
+          const message = new TextDecoder().decode(bytes);
+          handleMessage(message);
       }
     } else {
       console.log('WebSocket binary message not received:', event.data);
@@ -112,19 +171,28 @@ export function liveConnect(cbDrawBoard) {
 }
 
 function handleMessage(message) {
-  console.log(message);
-  switch (message) {
+  console.log('Handling message', message);
+  // Get first letter of message
+  const messageCode = message[0];
+  switch (messageCode) {
     case 'c':
       console.log('Game connected.');
       break;
+    case 'o':
+      // Remove first letter and parse the rest of the message
+      const opponent = message.slice(1);
+      console.log('Got Opponent', opponent);
+      localStorage.setItem('playerOpponent', opponent);
     case 'i':
       console.log('Invalid Move.');
       break;
     case 'w':
-      console.log('White win!');
+      console.log('White player!');
+      localStorage.setItem('playerColor', message);
       break;
     case 'b':
-      console.log('Black win!');
+      console.log('Black player!');
+      localStorage.setItem('playerColor', message);
       break;
   }
 }

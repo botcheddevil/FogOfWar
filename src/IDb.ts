@@ -1,4 +1,4 @@
-import { Game, GameStatus, GameResult, Move } from './types';
+import { Game, GameResult, Move, Session } from './types';
 
 export interface IDb {
   connect(): Promise<void>;
@@ -16,28 +16,23 @@ export interface IDb {
 
   // Session Management
   validateUserSession(sessionId: string, email: string): Promise<string | null>;
-  validateSession(sessionId: string, gameId: string): Promise<boolean>;
+  validateSession(sessionId: string, gameId: string): Promise<Session | null>;
   deleteSession(sessionId: string): Promise<boolean>;
 
   // Game Management
   createGame(
     playerWhite: string,
     playerBlack: string,
-    initialState: Uint8Array,
+    positions: Array<number | null>,
   ): Promise<string>;
-  getGameState(
+  updateGame(
     gameId: string,
-  ): Promise<{ game: Game; state: Uint8Array } | null>;
-  updateGameState(
-    gameId: string,
-    newState: Uint8Array,
+    positions: (number | null)[],
     move: Move,
-    status?: GameStatus,
-    finalResult?: GameResult,
+    gameResult: GameResult,
   ): Promise<boolean>;
   getGameList(
     email: string,
-    status?: GameStatus[],
     page?: number,
     limit?: number,
   ): Promise<{ games: Game[]; total: number }>;

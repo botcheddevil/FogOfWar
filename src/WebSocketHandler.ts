@@ -2,14 +2,16 @@ import { Server } from 'http';
 import { ILogger } from './ILogger';
 import WebSocket from 'ws';
 import { IDb } from './IDb';
-import { ChessBoardFactory } from './ChessBoardFactory';
+import { Game, Session } from './types';
+import { ChessPieceColor } from './ChessPieceColor';
+import { ChessBoard } from './ChessBoard';
 
 export class WebSocketHandler {
   private logger: ILogger;
   private wss: WebSocket.Server;
   private db: IDb;
   private gameMap: Map<string, Array<WebSocket>> = new Map();
-  private sessionMap: Map<WebSocket, { gameId: string; sessionId: string }> =
+  private sessionMap: Map<WebSocket, { gameId: string; session: Session }> =
     new Map();
 
   constructor(server: Server, db: IDb, logger: ILogger) {
@@ -39,82 +41,129 @@ export class WebSocketHandler {
     this.logger.info(`Received message => ${message} ${message.length}`);
     switch (message.length) {
       case 2:
-        this.logger.info('Received 2 bytes');
-        // Movement of piece
-        const start = message[0];
-        const end = message[1];
-        this.logger.info(`Start: ${start} End: ${end}`);
-        const sessionData = this.sessionMap.get(ws);
-        if (!sessionData) {
-          this.logger.error('Session not found');
-          return;
-        }
-        const moveGameState = await this.db.getGameState(sessionData.gameId);
-        if (!moveGameState) {
-          this.logger.error('Failed to get game state');
-          return;
-        }
-        const chessBoard = ChessBoardFactory.createBoardFromUInt6Array(
-          moveGameState.state,
-          this.logger,
-        );
-        const from = [Math.floor(start / 8), start % 8];
-        const to = [Math.floor(end / 8), end % 8];
-        this.logger.info(`From: ${from} To: ${to}`);
-        const moveResult = chessBoard.movePiece(from, to);
-        const binary = chessBoard.toBinary();
-        console.log('Saving state', binary);
-        this.db.updateGameState(sessionData.gameId, binary, {
-          start,
-          end,
-          timestamp: new Date(),
-        });
-
-        this.gameMap.get(sessionData.gameId)?.forEach((socket) => {
-          socket.send(binary);
-        });
-        if (!moveResult) {
-          this.logger.warn('Invalid move');
-          return;
-        }
+        this.handleMessageMove(message, ws);
         break;
       case 32:
-        const { gameId, sessionId } = this.unpackBytes(message);
-        this.logger.info(`gameId: ${gameId} sessionId: ${sessionId}`);
-        const result = await this.db.validateSession(sessionId, gameId);
-        if (!result) {
-          this.logger.warn(
-            `Invalid Session -- GameId: ${gameId} SessionId: ${sessionId}`,
-          );
-          // Send `i` as Uint8Array
-          const invalidSession = new Uint8Array([105]);
-          ws.send(invalidSession);
-          ws.close();
-          return;
-        }
-        // Store the WebSocket connection
-        this.sessionMap.set(ws, { gameId, sessionId });
-
-        // Store the game map
-        const sockets = this.gameMap.get(gameId) || [];
-        sockets.push(ws);
-        this.gameMap.set(gameId, sockets);
-
-        // Send game state to the player
-        const gameState = await this.db.getGameState(gameId);
-        if (!gameState) {
-          this.logger.error('Failed to get game state');
-          return;
-        }
-        this.logger.info('Sending game state to player', { gameState });
-        ws.send(gameState.state);
+        this.handleMessageJoin(message, ws);
         break;
       default:
         this.logger.error('Invalid message length');
     }
   }
 
-  bytesToUuid(bytes: Uint8Array, offset: number = 0): string {
+  private async handleMessageMove(message: Buffer, ws: WebSocket) {
+    const start = message[0];
+    const end = message[1];
+
+    // Load the session data
+    const sessionData = this.sessionMap.get(ws);
+    if (!sessionData) {
+      this.logger.error('Session not found');
+      ws.close();
+      return;
+    }
+
+    // Load the game state
+    const game = await this.db.getGame(sessionData.gameId);
+    if (!game) {
+      this.logger.error('Failed to get game state');
+      ws.close();
+      return;
+    }
+    const chessBoard = new ChessBoard(
+      game.moves,
+      game.positions,
+      game.result,
+      this.logger,
+    );
+
+    // Move the piece
+    const playerColor =
+      game.playerWhite === sessionData.session.email
+        ? ChessPieceColor.White
+        : ChessPieceColor.Black;
+    const move = chessBoard.movePiece(playerColor, start, end);
+    if (!move) {
+      this.logger.warn('Invalid move');
+      ws.send(chessBoard.toBinary());
+      return;
+    }
+
+    // Update the game state
+    const gameResult = chessBoard.getResult();
+    this.db.updateGame(
+      sessionData.gameId,
+      chessBoard.getPositions(),
+      move,
+      gameResult,
+    );
+
+    this.logger.info('Game Result', { gameResult });
+    this.logger.info('Move', { move });
+    this.logger.info('Positions', { positions: chessBoard.getPositions() });
+
+    // Send the updated game state to all players
+    // - Send the binary representation to all players
+    this.gameMap.get(sessionData.gameId)?.forEach((socket) => {
+      if (socket === ws) {
+        return;
+      }
+      socket.send(chessBoard.toBinary());
+    });
+  }
+
+  private async handleMessageJoin(message: Buffer, ws: WebSocket) {
+    const { gameId, sessionId } = this.unpackBytes(message);
+    this.logger.info(`gameId: ${gameId} sessionId: ${sessionId}`);
+    const session = await this.db.validateSession(sessionId, gameId);
+    if (!session) {
+      this.logger.warn(
+        `Invalid Session -- GameId: ${gameId} SessionId: ${sessionId}`,
+      );
+      ws.close();
+      return;
+    }
+    // Store the WebSocket connection
+    this.sessionMap.set(ws, { gameId, session });
+
+    // Store the game map
+    const sockets = this.gameMap.get(gameId) || [];
+    sockets.push(ws);
+    this.gameMap.set(gameId, sockets);
+
+    // Send game state to the player
+    const game = await this.db.getGame(gameId);
+    if (!game) {
+      this.logger.error('Failed to get game state');
+      return;
+    }
+    this.logger.info('Sending game state to player', { game });
+    // Send letter w or b as Uint8Array
+    ws.send(new Uint8Array([game.playerWhite === session.email ? 119 : 98]));
+    // Prefix opponent email with `o` and send it as Uint8Array
+    const opponent = this.getOpponentEmail(game, session.email);
+    this.logger.info('Sending opponent email to player', { opponent });
+    ws.send(new Uint8Array([111, ...Buffer.from(opponent)]));
+
+    const turnOfPlayer =
+      game.moves.length % 2 === 0 && game.playerWhite === session.email;
+
+    this.logger.info('Turn Of Player', { turnOfPlayer });
+
+    const chessBoard = new ChessBoard(
+      game.moves,
+      game.positions,
+      game.result,
+      this.logger,
+    );
+    ws.send(chessBoard.toBinary(turnOfPlayer));
+  }
+
+  private getOpponentEmail(game: Game, email: string): string {
+    return game.playerWhite === email ? game.playerBlack : game.playerWhite;
+  }
+
+  private bytesToUuid(bytes: Uint8Array, offset: number = 0): string {
     const hex = Array.from(bytes.slice(offset, offset + 16))
       .map((b) => b.toString(16).padStart(2, '0'))
       .join('');
@@ -122,7 +171,10 @@ export class WebSocketHandler {
     return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
   }
 
-  unpackBytes(bytes: Uint8Array): { gameId: string; sessionId: string } {
+  private unpackBytes(bytes: Uint8Array): {
+    gameId: string;
+    sessionId: string;
+  } {
     return {
       gameId: this.bytesToUuid(bytes, 0),
       sessionId: this.bytesToUuid(bytes, 16),

@@ -1,4 +1,6 @@
 import { Binary, ObjectId } from 'mongodb';
+import { ChessPieceColor } from './ChessPieceColor';
+import { ChessPieceType } from './ChessPieceType';
 
 export interface User {
   _id?: ObjectId;
@@ -10,32 +12,28 @@ export interface User {
 export interface Move {
   start: number;
   end: number;
+  pieceColor: ChessPieceColor;
+  pieceType: ChessPieceType;
   timestamp: Date;
 }
 
-export enum GameStatus {
-  NEW = 'new',
-  IN_PROGRESS = 'in-progress',
-  COMPLETE = 'complete',
-}
-
 export enum GameResult {
-  ONGOING = 'ongoing',
-  ABANDONED = 'abandoned',
-  DRAW = 'draw',
-  WHITE_WINS = 'white-wins',
-  BLACK_WINS = 'black-wins',
+  WAITING = 0,
+  ONGOING = 1,
+  ABANDONED = 2,
+  DRAW = 3,
+  BLACK_WINS = 4,
+  WHITE_WINS = 5,
 }
 
 export interface Game {
   _id?: ObjectId;
-  udid: string;
+  uuid: string;
   playerWhite: string;
   playerBlack: string;
   createdDate: Date;
   moves: Move[];
-  gameState: Binary;
-  status: GameStatus;
+  positions: Array<number | null>;
   result: GameResult;
 }
 

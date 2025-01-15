@@ -30,6 +30,6 @@ export class ChessPiece {
   }
 
   encodePiece(): number {
-    return (this.color << 3) | this.type; // Shift color left by 3 bits and combine with type
+    return ((this.color + 2) << 3) | this.type; // Shift color left by 3 bits and combine with type
   }
 }

@@ -1,10 +1,11 @@
-import { MongoClient, Binary, MongoClientOptions } from 'mongodb';
+import { MongoClient, MongoClientOptions } from 'mongodb';
 import bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
-import { User, Game, GameStatus, GameResult, Move, Session } from './types';
+import { User, Game, GameResult, Move, Session } from './types';
 import { ILogger } from './ILogger';
+import { IDb } from './IDb';
 
-export class Db {
+export class Db implements IDb {
   private client: MongoClient;
   private readonly dbName = 'chess';
   private logger: ILogger;
@@ -142,7 +143,10 @@ export class Db {
     }
   }
 
-  async validateSession(sessionId: string, gameId: string): Promise<boolean> {
+  async validateSession(
+    sessionId: string,
+    gameId: string,
+  ): Promise<Session | null> {
     try {
       const sessionCollection = this.client
         .db(this.dbName)
@@ -154,7 +158,7 @@ export class Db {
 
       if (!session) {
         this.logger.warn(`Session ${sessionId} not found`);
-        return false;
+        return null;
       }
 
       // Update last active timestamp
@@ -168,16 +172,16 @@ export class Db {
         .collection<Game>(this.gameCollection);
 
       const game = await gameCollection.findOne({
-        udid: gameId,
+        uuid: gameId,
         $or: [{ playerWhite: session.email }, { playerBlack: session.email }],
       });
 
       if (!game) {
         this.logger.warn(`Game ${gameId} not found`);
-        return false;
+        return null;
       }
 
-      return true;
+      return session;
     } catch (error) {
       console.error('Failed to validate session:', error);
       throw error;
@@ -203,7 +207,7 @@ export class Db {
   async createGame(
     playerWhite: string,
     playerBlack: string,
-    initialState: Uint8Array,
+    positions: Array<number | null>,
   ): Promise<string> {
     try {
       const collection = this.client
@@ -211,55 +215,28 @@ export class Db {
         .collection<Game>(this.gameCollection);
 
       const game: Game = {
-        udid: uuidv4(),
+        uuid: uuidv4(),
         playerWhite,
         playerBlack,
         createdDate: new Date(),
         moves: [],
-        gameState: new Binary(Buffer.from(initialState)),
-        status: GameStatus.NEW,
-        result: GameResult.ONGOING,
+        positions: positions,
+        result: GameResult.WAITING,
       };
 
       await collection.insertOne(game);
-      return game.udid;
+      return game.uuid;
     } catch (error) {
       this.logger.error('Failed to create game:', { error });
       throw error;
     }
   }
 
-  async getGameState(
+  async updateGame(
     gameId: string,
-  ): Promise<{ game: Game; state: Uint8Array } | null> {
-    try {
-      const collection = this.client
-        .db(this.dbName)
-        .collection<Game>(this.gameCollection);
-      const game = await collection.findOne({ udid: gameId });
-
-      if (!game) {
-        return null;
-      }
-
-      const binary = new Uint8Array(game.gameState.buffer);
-
-      return {
-        game,
-        state: binary,
-      };
-    } catch (error) {
-      console.error('Failed to get game state:', error);
-      throw error;
-    }
-  }
-
-  async updateGameState(
-    gameId: string,
-    newState: Uint8Array,
+    positions: (number | null)[],
     move: Move,
-    status?: GameStatus,
-    finalResult?: GameResult,
+    gameResult: GameResult,
   ): Promise<boolean> {
     try {
       const collection = this.client
@@ -267,16 +244,12 @@ export class Db {
         .collection<Game>(this.gameCollection);
 
       const updateDoc: Partial<Game> = {
-        gameState: new Binary(Buffer.from(newState)),
-        status: status || GameStatus.IN_PROGRESS,
+        positions: positions,
+        result: gameResult,
       };
 
-      if (finalResult) {
-        updateDoc.result = finalResult;
-      }
-
       const result = await collection.updateOne(
-        { udid: gameId },
+        { uuid: gameId },
         {
           $set: updateDoc,
           $push: { moves: move },
@@ -292,7 +265,6 @@ export class Db {
 
   async getGameList(
     email: string,
-    status?: GameStatus[],
     page: number = 1,
     limit: number = 10,
   ): Promise<{ games: Game[]; total: number }> {
@@ -304,10 +276,6 @@ export class Db {
       const query: any = {
         $or: [{ playerWhite: email }, { playerBlack: email }],
       };
-
-      if (status && status.length > 0) {
-        query.status = { $in: status };
-      }
 
       const skip = (page - 1) * limit;
 
@@ -333,7 +301,7 @@ export class Db {
       const collection = this.client
         .db(this.dbName)
         .collection<Game>(this.gameCollection);
-      return collection.findOne({ udid: gameId });
+      return collection.findOne({ uuid: gameId });
     } catch (error) {
       console.error('Failed to get game:', error);
       throw error;
@@ -346,7 +314,7 @@ export class Db {
         .db(this.dbName)
         .collection<Game>(this.gameCollection);
 
-      const game = await collection.findOne({ udid: gameId });
+      const game = await collection.findOne({ uuid: gameId });
 
       if (!game) {
         this.logger.error('Game does not exist');
@@ -366,9 +334,9 @@ export class Db {
       }
 
       const result = await collection.updateOne(
-        { udid: gameId },
+        { uuid: gameId },
         {
-          $set: { playerBlack },
+          $set: { playerBlack, status: GameResult.ONGOING },
         },
       );
       this.logger.info(`Player ${playerBlack} joined game ${gameId}`);

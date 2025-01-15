@@ -46,9 +46,19 @@ export class ChessPieceFactory {
     }
   }
 
-  static decodePiece(byte: number): ChessPiece {
-    const color = (byte >> 3) & 1; // Shift right 3 and mask with 1 to get color
-    const type = byte & 0b111; // Mask with 111 to get type (3 bits)
+  static decodePiece(encoded: number): ChessPiece | null {
+    // First check if it was encoded (first bit should be 1)
+    if ((encoded & (1 << 5)) === 0) {
+      // Check if 6th bit is 0
+      return null;
+    }
+
+    // Extract type (last 3 bits)
+    const type = encoded & 0b111; // 0b111 is binary for 7
+
+    // Extract color (shift right by 3 and subtract 2)
+    const color = (encoded >> 3) - 2;
+
     return ChessPieceFactory.createPiece(type, color);
   }
 }

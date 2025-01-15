@@ -5,4 +5,5 @@ export enum ChessPieceType {
   Bishop = 3,
   Knight = 4,
   Pawn = 5,
+  None = 7,
 }

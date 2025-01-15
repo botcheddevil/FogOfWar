@@ -1,9 +1,7 @@
 import { mockLogger } from './mocks';
 import { ChessBoardFactory } from '../ChessBoardFactory';
-import { ChessPieceFactory } from '../ChessPieceFactory';
 import { ChessBoard } from '../ChessBoard';
-import { ChessPieceType } from '../ChessPieceType';
-import { ChessPieceColor } from '../ChessPieceColor';
+import { GameResult } from '../types';
 describe('ChessBoard', () => {
   it('Create standard board', () => {
     const chessBoard = ChessBoardFactory.createBoard(mockLogger);
@@ -11,75 +9,45 @@ describe('ChessBoard', () => {
     const binary = chessBoard.toBinary();
     expect(Array.from(binary).length).toBe(25);
     expect(Array.from(binary)).toStrictEqual([
-      32, 146, 139, 48, 211, 143, 0, 112, 70, 8, 80, 196, 195, 28, 179, 211, 93,
-      183, 227, 254, 126, 235, 222, 252, 2,
+      72, 162, 44, 76, 227, 60, 192, 17, 24, 66, 49, 16, 112, 44, 207, 116, 109,
+      223, 248, 159, 251, 122, 191, 243, 20,
     ]);
   });
 
   it('Create board for a single piece on board', () => {
-    const board = [
-      [
-        null,
-        null,
-        ChessPieceFactory.createPiece(
-          ChessPieceType.Bishop,
-          ChessPieceColor.White,
-        ),
-        null,
-        null,
-        null,
-        null,
-        null,
-      ],
-      Array(8).fill(null),
-      Array(8).fill(null),
-      Array(8).fill(null),
-      Array(8).fill(null),
-      Array(8).fill(null),
-      Array(8).fill(null),
-      Array(8).fill(null),
-    ];
-    const chessBoard = new ChessBoard(board, mockLogger);
+    const positions: Array<number | null> = Array(32).fill(null);
+    positions[13] = 2;
+    const chessBoard = new ChessBoard(
+      [],
+      positions,
+      GameResult.WAITING,
+      mockLogger,
+    );
     const binary = chessBoard.toBinary();
     expect(binary).toBeDefined();
-    expect(Array.from(binary).length).toBe(24);
+    expect(Array.from(binary).length).toBe(25);
     expect(Array.from(binary)).toStrictEqual([
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 128, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      30,
     ]);
   });
 
   it('Create board for a single piece on board on zeroth location', () => {
-    const board = [
-      [
-        ChessPieceFactory.createPiece(
-          ChessPieceType.Bishop,
-          ChessPieceColor.White,
-        ),
-        null,
-        ChessPieceFactory.createPiece(
-          ChessPieceType.Bishop,
-          ChessPieceColor.White,
-        ),
-        null,
-        null,
-        null,
-        null,
-        null,
-      ],
-      Array(8).fill(null),
-      Array(8).fill(null),
-      Array(8).fill(null),
-      Array(8).fill(null),
-      Array(8).fill(null),
-      Array(8).fill(null),
-      Array(8).fill(null),
-    ];
-    const chessBoard = new ChessBoard(board, mockLogger);
+    const positions: Array<number | null> = Array(32).fill(null);
+    positions[12] = 2;
+    positions[13] = 0;
+    const chessBoard = new ChessBoard(
+      [],
+      positions,
+      GameResult.WAITING,
+      mockLogger,
+    );
     const binary = chessBoard.toBinary();
     expect(binary).toBeDefined();
-    expect(Array.from(binary).length).toBe(24);
+    expect(Array.from(binary).length).toBe(25);
     expect(Array.from(binary)).toStrictEqual([
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      22,
     ]);
   });
 });

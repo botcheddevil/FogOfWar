@@ -27,10 +27,9 @@ describe('WebSocketHandler', () => {
       validateSession: jest.fn(),
       deleteSession: jest.fn(),
       createGame: jest.fn(),
-      getGameState: jest.fn(),
-      updateGameState: jest.fn(),
-      getGameList: jest.fn(),
       getGame: jest.fn(),
+      updateGame: jest.fn(),
+      getGameList: jest.fn(),
       joinGame: jest.fn(),
     };
 
@@ -48,6 +47,7 @@ describe('WebSocketHandler', () => {
   });
 
   afterEach(() => {
+    wsClient.terminate();
     jest.restoreAllMocks();
   });
 

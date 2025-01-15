@@ -32,3 +32,12 @@ export const pieceSequence = [
   { color: 'black', type: 'king' },
   { color: 'black', type: 'queen' },
 ];
+
+export const gameResults = [
+  'WAITING',
+  'ONGOING',
+  'ABANDONED',
+  'DRAW',
+  'BLACK WINS',
+  'WHITE WINS',
+];

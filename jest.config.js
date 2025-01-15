@@ -7,4 +7,5 @@ module.exports = {
   },
   testRegex: '.*\\.test\\.ts$',
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
+  collectCoverage: true,
 };

@@ -108,15 +108,12 @@ export class HttpHandler {
 
       // Create initial game state (example)
       const board = ChessBoardFactory.createBoard(this.logger);
-      const binary = board.toBinary();
 
-      this.logger.info(`Generated binary ${binary.length} bytes`);
-      console.log(binary);
       // Create new game in database
       const gameId = await this.db.createGame(
         username, // White player
         '', // Black player
-        binary,
+        board.getPositions(),
       );
 
       res.json({

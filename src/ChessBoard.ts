@@ -1,39 +1,134 @@
-import { ChessBoardFactory } from './ChessBoardFactory';
+import { BitPacker } from './BitPacker';
 import { ChessPiece } from './ChessPiece';
 import { ChessPieceColor } from './ChessPieceColor';
 import { ChessPieceFactory } from './ChessPieceFactory';
 import { ChessPieceType } from './ChessPieceType';
+import { GameStateEncoder } from './GameStateEncoder';
 import { ILogger } from './ILogger';
-import { UInt6Array } from './UInt6Array';
+import { GameResult, Move } from './types';
 
 export class ChessBoard {
-  private fullBoard: (ChessPiece | null)[][];
-  private logger: ILogger;
+  static positionSequence: Array<ChessPieceType> = [
+    ChessPieceType.Pawn,
+    ChessPieceType.Pawn,
+    ChessPieceType.Pawn,
+    ChessPieceType.Pawn,
+    ChessPieceType.Pawn,
+    ChessPieceType.Pawn,
+    ChessPieceType.Pawn,
+    ChessPieceType.Pawn,
+    ChessPieceType.Rook,
+    ChessPieceType.Rook,
+    ChessPieceType.Knight,
+    ChessPieceType.Knight,
+    ChessPieceType.Bishop,
+    ChessPieceType.Bishop,
+    ChessPieceType.King,
+    ChessPieceType.Queen,
+  ];
 
-  constructor(board: ChessPiece[][], logger: ILogger) {
-    this.fullBoard = board;
-    this.logger = logger;
+  constructor(
+    private moves: Move[],
+    private positions: Array<number | null>,
+    private result: GameResult,
+    private logger: ILogger,
+  ) {}
+
+  getPositions(): Array<number | null> {
+    return this.positions;
   }
 
-  movePiece(from: number[], to: number[]): boolean {
+  getResult(): GameResult {
+    return this.result;
+  }
+
+  getPiece(position: number): ChessPiece | null {
+    const pieceIndex = this.positions.indexOf(position);
+    if (pieceIndex === -1) {
+      return null;
+    }
+    const color = Math.floor(pieceIndex / 16) as ChessPieceColor;
+    const type = ChessBoard.positionSequence[pieceIndex % 16];
+    return ChessPieceFactory.createPiece(type, color);
+  }
+
+  getPieceAtRowCol(row: number, col: number): ChessPiece | null {
+    return this.getPiece(row * 8 + col);
+  }
+
+  setPiece(fromPosition: number, toPosition: number): void {
+    const fromPieceIndex = this.positions.indexOf(fromPosition);
+    const toPieceIndex = this.positions.indexOf(toPosition);
+    this.positions[fromPieceIndex] = toPosition;
+    this.positions[toPieceIndex] = null;
+  }
+
+  movePiece(
+    playerColor: ChessPieceColor,
+    start: number,
+    end: number,
+  ): Move | null {
+    const from = [Math.floor(start / 8), start % 8];
+    const to = [Math.floor(end / 8), end % 8];
+    this.logger.info(`From: ${from} To: ${to}`);
+
+    const piece = this.getPiece(start);
+    if (!piece) {
+      this.logger.error('No piece found at position', { from });
+      return null;
+    }
+
+    if (piece.getColor() !== playerColor) {
+      this.logger.error('Not allowed to move piece');
+      return null;
+    }
+
+    if (!this.isValidTurn(piece.getColor())) {
+      this.logger.error('Invalid turn');
+      return null;
+    }
+
     if (!this.validateMove(from, to)) {
       this.logger.error('Invalid move');
-      return false;
+      return null;
     }
 
     if (this.hasObstruction(from, to)) {
       this.logger.error('Obstruction found');
-      return false;
+      return null;
     }
 
     if (!this.isPieceCapturable(from, to)) {
       this.logger.error('Piece not capturable');
-      return false;
+      return null;
     }
 
-    this.fullBoard[to[0]][to[1]] = this.fullBoard[from[0]][from[1]];
-    this.fullBoard[from[0]][from[1]] = null;
-    return true;
+    this.setPiece(start, end);
+
+    this.result = this.calculateResult();
+
+    return {
+      start,
+      end,
+      pieceColor: piece.getColor(),
+      pieceType: piece.getType(),
+      timestamp: new Date(),
+    } as Move;
+  }
+
+  private calculateResult(): GameResult {
+    const kingSeqIndex = ChessBoard.positionSequence.indexOf(
+      ChessPieceType.King,
+    );
+
+    if (this.positions[kingSeqIndex] === null) {
+      return GameResult.BLACK_WINS;
+    }
+
+    if (this.positions[kingSeqIndex + 16] === null) {
+      return GameResult.WHITE_WINS;
+    }
+    return GameResult.ONGOING;
   }
 
   hasObstruction(from: number[], to: number[]): boolean {
@@ -43,21 +138,25 @@ export class ChessBoard {
     while (row !== to[0] && col !== to[1]) {
       row += row < to[0] ? 1 : -1;
       col += col < to[1] ? 1 : -1;
-      if (this.fullBoard[row][col] !== null && row !== to[0] && col !== to[1]) {
+      if (
+        this.getPieceAtRowCol(row, col) !== null &&
+        row !== to[0] &&
+        col !== to[1]
+      ) {
         return true;
       }
     }
 
     while (row !== to[0]) {
       row += row < to[0] ? 1 : -1;
-      if (this.fullBoard[row][col] !== null && row !== to[0]) {
+      if (this.getPieceAtRowCol(row, col) !== null && row !== to[0]) {
         return true;
       }
     }
 
     while (col !== to[1]) {
       col += col < to[1] ? 1 : -1;
-      if (this.fullBoard[row][col] !== null && col !== to[1]) {
+      if (this.getPieceAtRowCol(row, col) !== null && col !== to[1]) {
         return true;
       }
     }
@@ -65,23 +164,33 @@ export class ChessBoard {
     return false;
   }
 
+  isValidTurn(color: ChessPieceColor): boolean {
+    const lastMove = this.moves[this.moves.length - 1];
+    if (!lastMove) {
+      return color === ChessPieceColor.White;
+    }
+    return lastMove.pieceColor !== color;
+  }
+
   isPieceCapturable(from: number[], to: number[]): boolean {
-    const piece = this.fullBoard[to[0]][to[1]];
+    const piece = this.getPieceAtRowCol(to[0], to[1]);
     if (!piece) {
       return true;
     }
-    return piece.getColor() !== this.fullBoard[from[0]][from[1]]?.getColor();
+    return (
+      piece.getColor() !== this.getPieceAtRowCol(from[0], from[1])?.getColor()
+    );
   }
 
   validateMove(from: number[], to: number[]): boolean {
-    const piece = this.fullBoard[from[0]][from[1]];
+    const piece = this.getPieceAtRowCol(from[0], from[1]);
     if (!piece) {
       this.logger.error('No piece found at position', { from });
       return false;
     }
     return piece.getValidMoves().some((movement) => {
       const direction = piece.getColor() === ChessPieceColor.White ? 1 : -1;
-      const toPiece = this.fullBoard[to[0]][to[1]];
+      const toPiece = this.getPieceAtRowCol(to[0], to[1]);
       const toCaptureable =
         toPiece !== null && toPiece.getColor() !== piece.getColor();
       const result = movement.validateMove(from, to, direction, toCaptureable);
@@ -96,125 +205,27 @@ export class ChessBoard {
     });
   }
 
-  toBinary(): Uint8Array {
-    const shortBoard = new Array(32).fill(null);
-
-    const colorPiecePositionMap = this.getColorPiecePositionMap();
-    for (let i = 0; i < 8; i++) {
-      for (let j = 0; j < 8; j++) {
-        const piece = this.fullBoard[i][j];
-        if (piece) {
-          const positions = colorPiecePositionMap
-            .get(piece.getColor())
-            ?.get(piece.getType());
-
-          if (positions) {
-            const index = positions.indexOf(null as unknown as number);
-            if (index !== -1) {
-              positions[index] = i * 8 + j;
-            }
-          }
-        }
-      }
+  getZeroPiece(): ChessPiece {
+    const position = this.positions.findIndex((position) => position === 0);
+    if (position === -1) {
+      return new ChessPiece(ChessPieceType.None, ChessPieceColor.White, []);
     }
-
-    this.createBinary(shortBoard, ChessPieceColor.White, colorPiecePositionMap);
-    this.createBinary(shortBoard, ChessPieceColor.Black, colorPiecePositionMap);
-
-    this.logger.debug('Board positions:', { board: shortBoard });
-
-    const zeroIndex = shortBoard.indexOf(0);
-
-    if (zeroIndex !== -1) {
-      const mergedArray = new Uint8Array(25);
-      const zeroType = ChessBoardFactory.sequence[zeroIndex % 16];
-      const zeroColor =
-        zeroIndex < 16 ? ChessPieceColor.White : ChessPieceColor.Black;
-      const encodedPiece = ChessPieceFactory.createPiece(
-        zeroType,
-        zeroColor,
-      ).encodePiece();
-      mergedArray.set(this.encodeChessPosition(shortBoard));
-      mergedArray.set([encodedPiece], 24);
-
-      return mergedArray;
-    }
-
-    return this.encodeChessPosition(shortBoard);
+    const color = Math.floor(position / 16) as ChessPieceColor;
+    const type = ChessBoard.positionSequence[position % 16];
+    return ChessPieceFactory.createPiece(type, color);
   }
 
-  private encodeChessPosition(positions: number[]): Uint8Array {
-    const uint6arr = new UInt6Array(32); // 32 pieces
-    uint6arr.set(positions);
-    return uint6arr.getBuffer(); // Returns 24-byte Uint8Array
-  }
-
-  private createBinary(
-    board: Array<number | null>,
-    color: ChessPieceColor,
-    colorPiecePositionMap: Map<ChessPieceColor, Map<ChessPieceType, number[]>>,
-  ) {
-    const prefix = color === ChessPieceColor.White ? 0 : 16;
-
-    for (let i = 0; i < 8; i++) {
-      board[prefix + i] =
-        colorPiecePositionMap.get(color)?.get(ChessPieceType.Pawn)?.[i] ?? null;
-    }
-
-    for (let i = 0; i < 2; i++) {
-      board[prefix + i + 8] =
-        colorPiecePositionMap.get(color)?.get(ChessPieceType.Rook)?.[i] ?? null;
-    }
-
-    for (let i = 0; i < 2; i++) {
-      board[prefix + i + 8 + 2] =
-        colorPiecePositionMap.get(color)?.get(ChessPieceType.Knight)?.[i] ??
-        null;
-    }
-
-    for (let i = 0; i < 2; i++) {
-      board[prefix + i + 8 + 2 + 2] =
-        colorPiecePositionMap.get(color)?.get(ChessPieceType.Bishop)?.[i] ??
-        null;
-    }
-
-    board[prefix + 0 + 8 + 2 + 2 + 1 + 1] =
-      colorPiecePositionMap.get(color)?.get(ChessPieceType.King)?.[0] ?? null;
-
-    board[prefix + 0 + 8 + 2 + 2 + 1 + 1 + 1] =
-      colorPiecePositionMap.get(color)?.get(ChessPieceType.Queen)?.[0] ?? null;
-  }
-
-  getColorPiecePositionMap(): Map<
-    ChessPieceColor,
-    Map<ChessPieceType, Array<number>>
-  > {
-    const colorPiecePositionMap = new Map<
-      ChessPieceColor,
-      Map<ChessPieceType, Array<number>>
-    >();
-
-    colorPiecePositionMap.set(
-      ChessPieceColor.White,
-      this.getPiecePositionMap(),
+  toBinary(turnOfPlayer: boolean = true): Uint8Array {
+    // - Generate the binary representation of the game state
+    const first24Bytes = BitPacker.packUInt6Array(this.getPositions());
+    const zeroPiece = this.getZeroPiece();
+    const encoded25thByte = GameStateEncoder.encode(
+      zeroPiece.getColor(),
+      zeroPiece.getType(),
+      turnOfPlayer,
+      this.getResult(),
     );
-
-    colorPiecePositionMap.set(
-      ChessPieceColor.Black,
-      this.getPiecePositionMap(),
-    );
-
-    return colorPiecePositionMap;
-  }
-
-  getPiecePositionMap(): Map<ChessPieceType, Array<number>> {
-    const piecePositionMap = new Map<ChessPieceType, Array<number>>();
-    piecePositionMap.set(ChessPieceType.Pawn, Array(8).fill(null));
-    piecePositionMap.set(ChessPieceType.Rook, Array(2).fill(null));
-    piecePositionMap.set(ChessPieceType.Knight, Array(2).fill(null));
-    piecePositionMap.set(ChessPieceType.Bishop, Array(2).fill(null));
-    piecePositionMap.set(ChessPieceType.King, Array(1).fill(null));
-    piecePositionMap.set(ChessPieceType.Queen, Array(1).fill(null));
-    return piecePositionMap;
+    // - Merge the 24 bytes and the 25th byte
+    return Buffer.concat([first24Bytes, Buffer.from(encoded25thByte)]);
   }
 }
