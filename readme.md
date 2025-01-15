@@ -59,11 +59,7 @@ npm >= 6.0.0
 ### Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/optimized-chess.git
-
 # Install server dependencies
-cd server
 npm install
 
 # Install client dependencies
@@ -75,19 +71,8 @@ npm install
 
 ```bash
 # Start the server
-cd server
-npm run start
-
-# Start the client
-cd ../client
 npm run start
 ```
-
-## Documentation
-
-- [Architecture Overview](docs/ARCHITECTURE.md)
-- [Protocol Specification](docs/PROTOCOL.md)
-- [Optimization Details](docs/OPTIMIZATION.md)
 
 ## License
 
